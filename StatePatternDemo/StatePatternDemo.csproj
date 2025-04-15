@@ -43,12 +43,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DemoModule\DemoContext.cs" />
-    <Compile Include="DemoModule\DemoDriven.cs" />
-    <Compile Include="DemoModule\Interfaces\IDemoContext.cs" />
-    <Compile Include="DemoModule\Interfaces\IDemoDriven.cs" />
-    <Compile Include="DemoModule\Interfaces\IDemoEvent.cs" />
-    <Compile Include="DemoModule\Interfaces\IDemoState.cs" />
+    <Compile Include="DemoModule\Demo_Context.cs" />
+    <Compile Include="DemoModule\Demo_Driven.cs" />
+    <Compile Include="DemoModule\Interfaces\IDemo_Context.cs" />
+    <Compile Include="DemoModule\Interfaces\IDemo_Driven.cs" />
+    <Compile Include="DemoModule\Interfaces\IDemo_Event.cs" />
+    <Compile Include="DemoModule\Interfaces\IDemo_State.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

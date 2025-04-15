@@ -1,9 +1,8 @@
-﻿namespace StatePatternDemo.DemoModule.Interfaces
+namespace StatePatternDemo.DemoModule.Interfaces
 {
-    public interface IDemoDriven
+    public interface IDemo_Driven
     {
         void ActionConnectProcess();
-
         void ActionDisconnectProcess();
     }
 }
