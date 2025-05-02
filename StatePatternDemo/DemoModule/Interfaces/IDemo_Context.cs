@@ -11,6 +11,6 @@ namespace StatePatternDemo.DemoModule.Interfaces
 
         void SetState(IDemo_State state);
 
-        void HandleEvent(IDemo_Event stateEvent);
+        void HandleEvent(IDemo_Event inputEvent);
     }
 }

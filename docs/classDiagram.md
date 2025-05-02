@@ -8,7 +8,7 @@ classDiagram
         +IDemo_State ReadyState
         +IDemo_Driven Driven
         +SetState(IDemo_State state)
-        +HandleEvent(IDemo_Event stateEvent)
+        +HandleEvent(IDemo_Event inputEvent)
     }
 
     class DemoContext {
@@ -19,13 +19,13 @@ classDiagram
         -IDemo_State ReadyState
         +DemoContext(IDemo_Driven driven)
         +SetState(IDemo_State state)
-        +HandleEvent(IDemo_Event stateEvent)
+        +HandleEvent(IDemo_Event inputEvent)
     }
 
     class IDemo_State {
         <<interface>>
-        +HandleEvent(IDemo_Event stateEvent)
-        +Enter()
+        +HandleEvent(IDemo_Event inputEvent)
+        +Entry()
         +Exit()
     }
 
@@ -33,24 +33,24 @@ classDiagram
         <<abstract>>
         #IDemoContext Context
         +Base_Demo_State(IDemoContext context)
-        +HandleEvent(IDemo_Event stateEvent)*
-        +Enter()
+        +HandleEvent(IDemo_Event inputEvent)*
+        +Entry()
         +Exit()
     }
 
     class DemoNullState {
         +DemoNullState(IDemoContext context)
-        +HandleEvent(IDemo_Event stateEvent)
+        +HandleEvent(IDemo_Event inputEvent)
     }
 
     class DemoIdleState {
         +DemoIdleState(IDemoContext context)
-        +HandleEvent(IDemo_Event stateEvent)
+        +HandleEvent(IDemo_Event inputEvent)
     }
 
     class DemoReadyState {
         +DemoReadyState(IDemoContext context)
-        +HandleEvent(IDemo_Event stateEvent)
+        +HandleEvent(IDemo_Event inputEvent)
     }
 
     class IDemo_Driven {

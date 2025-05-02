@@ -26,9 +26,24 @@ namespace StatePatternDemo.DemoModule
             if (CurrentState == state) return;
             CurrentState?.Exit();
             CurrentState = state;
-            CurrentState?.Enter();
+            CurrentState?.Entry();
         }
 
-        public void HandleEvent(IDemo_Event stateEvent) => CurrentState.HandleEvent(stateEvent);
+        public void HandleEvent(IDemo_Event inputEvent) => CurrentState.HandleEvent(inputEvent);
     }
 }
+
+// ### State Transition Table
+// | No | Current State | Next State | Input Event | Output Action           |
+// |----|---------------|------------|-------------|-------------------------|
+// | 00 | Null          | Idle       | Create      |                         |
+// | 01 | Idle          | Ready      | Connect     | ActionConnectProcess    |
+// | 02 | Idle          | Null       | Destroy     |                         |
+// | 03 | Ready         | Idle       | Disconnect  | ActionDisconnectProcess |
+
+// ### State Boundary Table
+// | No | State | Entry Action | Exit Action |
+// |----|-------|--------------|-------------|
+// | 00 | Null  | EntryNull    | ExitNull    |
+// | 01 | Idle  | EntryIdle    | ExitIdle    |
+// | 02 | Ready | EntryReady   | ExitReady   |

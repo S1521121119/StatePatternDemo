@@ -19,20 +19,21 @@
 │  │  Demo_Context.cs
 │  │  Demo_Driven.cs
 │  └─Interfaces
-│          IDemo_Context.cs
-│          IDemo_Driven.cs
-│          IDemo_Event.cs
-│          IDemo_State.cs
+│      │  IDemo_Context.cs
+│      │  IDemo_Driven.cs
+│      │  IDemo_Event.cs
+│      │  IDemo_State.cs
+
 ```
 
 下方是狀態機的狀態遷移表格。
 ```
-| CurrentState | StateEvent | NextState | Action                  |
-|--------------|------------|-----------|-------------------------|
-| Null         | Create     | Idle      | -                       |
-| Idle         | Connect    | Ready     | ActionConnectProcess    |
-| Idle         | Destroy    | Null      | -                       |
-| Ready        | Disconnect | Idle      | ActionDisconnectProcess |
+| No | Current State | Next State | Input Event | Output Action           |
+|----|---------------|------------|-------------|-------------------------|
+| 00 | Null          | Idle       | Create      |                         |
+| 01 | Idle          | Ready      | Connect     | ActionConnectProcess    |
+| 02 | Idle          | Null       | Destroy     |                         |
+| 03 | Ready         | Idle       | Disconnect  | ActionDisconnectProcess |
 ```
 ---
 
@@ -46,7 +47,7 @@
   ```csharp
   public interface IDemo_State
   {
-        void HandleEvent(IDemo_Event stateEvent);
+        void HandleEvent(IDemo_Event inputEvent);
   }
   // 後續將根據需求追加內容
   ```
@@ -67,7 +68,7 @@
   {
       IDemo_Driven Driven { get; }
       void SetState(IDemo_State state);
-      void HandleEvent(IDemo_Event stateEvent);
+      void HandleEvent(IDemo_Event inputEvent);
       // 後續將根據需求追加內容
   }
   ```
@@ -94,7 +95,7 @@
 ---
 
 #### 5. 實作事件介面 `IDemo_Event`
-- **原因**：事件是觸發狀態轉換的關鍵，需實作出具體類別以供 `IDemo_Context` 接收與處理。
+- **原因**：事件是觸發狀態轉換的關鍵，，供 `Demo_State_XXX` 在 `HandleEvent` 中判斷與處理。
 - **步驟**：
   1. 分析系統所需的所有事件類型。
   2. 為每個事件定義對應的類別，實現 `IDemo_Event` 介面。
@@ -121,29 +122,29 @@
   ```csharp
   public interface IDemo_State
   {
-      void HandleEvent(IDemo_Event stateEvent);
+      void HandleEvent(IDemo_Event inputEvent);
   }
 
   public abstract class Base_Demo_State : IDemo_State
   {
       protected IDemo_Context Context { get; }
       public Base_Demo_State(IDemo_Context context) => Context = context;
-      public virtual void HandleEvent(IDemo_Event stateEvent) => throw new NotImplementedException($"HandleEvent was not implemented in '{GetType().Name}'.");
+      public virtual void HandleEvent(IDemo_Event inputEvent) => throw new NotImplementedException($"HandleEvent was not implemented in '{GetType().Name}'.");
   }
 
   public class Demo_State_Null : Base_Demo_State
   {
       public Demo_State_Null(IDemo_Context context) : base(context) { }
 
-      public override void HandleEvent(IDemo_Event stateEvent)
+      public override void HandleEvent(IDemo_Event inputEvent)
       {
-          switch (stateEvent)
+          switch (inputEvent)
           {
               case Demo_Event_Create _:
                   Context.SetState(Context.Idle_State);
                   break;
               default:
-                  throw new NotImplementedException($"Event '{stateEvent}' was not handled in '{GetType().Name}'.");
+                  throw new NotImplementedException($"Event '{inputEvent}' was not handled in '{GetType().Name}'.");
           }
       }
   }
@@ -152,19 +153,19 @@
   {
       public Demo_State_Idle(IDemo_Context context) : base(context) { }
 
-      public override void HandleEvent(IDemo_Event stateEvent)
+      public override void HandleEvent(IDemo_Event inputEvent)
       {
-          switch (stateEvent)
+          switch (inputEvent)
           {
               case Demo_Event_Connect _:
-                  Context.SetState(Context.Ready_State);
                   Context.Driven.ActionConnectProcess();
+                  Context.SetState(Context.Ready_State);
                   break;
               case Demo_Event_Destroy _:
                   Context.SetState(Context.Null_State);
                   break;
               default:
-                  throw new NotImplementedException($"Event '{stateEvent}' was not handled in '{GetType().Name}'.");
+                  throw new NotImplementedException($"Event '{inputEvent}' was not handled in '{GetType().Name}'.");
           }
       }
   }
@@ -173,21 +174,38 @@
   {
       public Demo_State_Ready(IDemo_Context context) : base(context) { }
 
-      public override void HandleEvent(IDemo_Event stateEvent)
+      public override void HandleEvent(IDemo_Event inputEvent)
       {
-          switch (stateEvent)
+          switch (inputEvent)
           {
               case Demo_Event_Disconnect _:
-                  Context.SetState(Context.Idle_State);
                   Context.Driven.ActionDisconnectProcess();
+                  Context.SetState(Context.Idle_State);
                   break;
               default:
-                  throw new NotImplementedException($"Event '{stateEvent}' was not handled in '{GetType().Name}'.");
+                  throw new NotImplementedException($"Event '{inputEvent}' was not handled in '{GetType().Name}'.");
           }
       }
   }
   ```
-- **備註**：每個狀態需持有 `IDemo_Context` 實例，以便進行狀態切換。
+- **備註**：
+  1. 每個狀態需持有 `IDemo_Context` 實例，以便進行狀態切換。
+  2. 先切換狀態還是先執行動作?
+  ```
+  Action 通常與當前狀態邏輯綁定，建議採用 Mealy 模式，以避免行為與狀態不一致的問題。
+  ```
+  ```csharp
+  // 先執行Output Action，再切換到Next State
+  // Mealy機（更符合邏輯上的因果關係）
+  Context.Driven.ActionDisconnectProcess();
+  Context.SetState(Context.Idle_State);
+
+
+  //先切換到Next State，再以Next State執行Output Action：
+  // Moore機
+  Context.SetState(Context.Idle_State);
+  Context.Driven.ActionDisconnectProcess();
+  ```
 
 ---
 
@@ -210,7 +228,7 @@
       // 既有內容
       IDemo_Driven Driven { get; }
       void SetState(IDemo_State state);
-      void HandleEvent(IDemo_Event stateEvent);
+      void HandleEvent(IDemo_Event inputEvent);
   }
   ```
 
@@ -251,7 +269,7 @@
           CurrentState = state;
       }
 
-      public void HandleEvent(IDemo_Event stateEvent) => CurrentState.HandleEvent(stateEvent);
+      public void HandleEvent(IDemo_Event inputEvent) => CurrentState.HandleEvent(inputEvent);
   }
   ```
 - **備註**：此為基礎實作，後續可根據需求加入狀態堆疊或事件通知功能。
@@ -269,7 +287,7 @@
   public class Demo_Driven : IDemo_Driven
   {
       public void ActionConnectProcess() => Console.WriteLine("Execute ConnectProcess Process...");
-      public void ActionDisconnectProcess() => Console.WriteLine("Execute DisconnectProcess Process...");}
+      public void ActionDisconnectProcess() => Console.WriteLine("Execute DisconnectProcess Process...");
   }
   ```
 - **備註**：範例中以簡單輸出作為示意，實際應用中可涉及硬體或網路操作。
@@ -324,28 +342,54 @@ Execute DisconnectProcess Process...
 
 ---
 
-#### 10. 擴充 `IDemo_State` 介面以支援 `Enter` 和 `Exit` 方法
-- **原因**：為了增強狀態機的靈活性和可追溯性，新增 `Enter` 和 `Exit` 方法能明確標記狀態的進入與離開時機，方便執行初始化、清理或其他副作用操作（如日誌記錄或資源管理）。
+#### 10. 擴充 `IDemo_State` 介面以支援 `Entry` 和 `Exit` 方法
+- **原因**：為了增強狀態機的靈活性和可追溯性，新增 `Entry` 和 `Exit` 方法能明確標記狀態的進入與離開時機，方便執行初始化、清理或其他副作用操作（如日誌記錄或資源管理）。
 - **步驟**：
-  1. 在 `IDemo_State` 介面中新增 `Enter` 和 `Exit` 方法的抽象定義。
+  1. 在 `IDemo_State` 介面中新增 `Entry` 和 `Exit` 方法的抽象定義。
   2. 更新現有狀態類別以實現這些方法。
 - **範例**：
   "./DemoModule/Interfaces/IDemo_State.cs"
   ```csharp
   public interface IDemo_State
   {
-      void HandleEvent(IDemo_Event stateEvent);
-      void Enter(); // 新增方法，定義狀態進入行為
+      void HandleEvent(IDemo_Event inputEvent);
+      void Entry(); // 新增方法，定義狀態進入行為
       void Exit(); // 新增方法，定義狀態離開行為
   }
   ```
 
----
+  下方是此範例的狀態行為表格。
+  ```
+  ### State Boundary Table
+  | No | State | Entry Action | Exit Action |
+  |----|-------|--------------|-------------|
+  | 00 | Null  | EntryNull    | ExitNull    |
+  | 01 | Idle  | EntryIdle    | ExitIdle    |
+  | 02 | Ready | EntryReady   | ExitReady   |
+  ```
 
-#### 11. 更新 `Base_Demo_State` 提供預設的 `Enter` 和 `Exit` 實作
-- **原因**：透過在抽象基類中提供預設的 `Enter` 和 `Exit` 實作，可減少子類的重複程式碼，並確保一致的行為模式（如日誌輸出）。具體狀態類別可根據需求覆寫這些方法。
+---
+#### 11. 更新 `IDemo_State` 提供預設的 `Entry` 和 `Exit` 實作
+- **原因**：透過在介面設定的 `Entry` 和 `Exit` ，讓實作的類別可以擁有方法。
 - **步驟**：
-  1. 在 `Base_Demo_State` 中實現 `Enter` 和 `Exit` 方法，輸出當前狀態名稱作為日誌。
+  1. 在 `IDemo_State` 中加入 `Entry` 和 `Exit` 方法。
+- **範例**：
+  "./DemoModule/Interfaces/IDemo_State.cs"
+  ```csharp
+  public interface IDemo_State
+  {      
+      // 既有內容
+      void HandleEvent(IDemo_Event inputEvent);
+
+      // 新增方法
+      void Entry();
+      void Exit();
+  }
+  ```
+#### 12. 更新 `Base_Demo_State` 提供預設的 `Entry` 和 `Exit` 實作
+
+- **步驟**：
+  1. 在 `Base_Demo_State` 中實現 `Entry` 和 `Exit` 方法，輸出當前狀態名稱作為紀錄。
   2. 確保子類（如 `Demo_State_Null`、`Demo_State_Idle`、`Demo_State_Ready`）繼承預設行為，或視需求進行覆寫。
 - **範例**：
   "./DemoModule/Interfaces/IDemo_State.cs"
@@ -354,8 +398,8 @@ Execute DisconnectProcess Process...
   {
       protected IDemo_Context Context { get; }
       public Base_Demo_State(IDemo_Context context) => Context = context;
-      public virtual void HandleEvent(IDemo_Event stateEvent) => throw new NotImplementedException($"HandleEvent was not implemented in '{GetType().Name}'.");
-      public virtual void Enter() => Console.WriteLine($"Enter '{GetType().Name}' State.");
+      public virtual void HandleEvent(IDemo_Event inputEvent) => throw new NotImplementedException($"HandleEvent was not implemented in '{GetType().Name}'.");
+      public virtual void Entry() => Console.WriteLine($"Entry '{GetType().Name}' State.");
       public virtual void Exit() => Console.WriteLine($"Exit '{GetType().Name}' State.");
   }
   ```
@@ -363,11 +407,164 @@ Execute DisconnectProcess Process...
 
 ---
 
-#### 12. 修改 `Demo_Context` 的 `SetState` 方法以支援 `Enter` 和 `Exit`
-- **原因**：狀態切換是狀態機的核心操作，需在切換時正確觸發當前狀態的 `Exit` 和新狀態的 `Enter`，以確保狀態轉換的完整性和副作用的執行。
+#### 14. 加入設計動作介面 `IDemo_Driven`
+- **原因**：提供讓個別State呼叫Entry/Exit的方法。
+- **步驟**：
+  1. 根據需求列舉所有可能的動作。
+  2. 為每個動作定義對應的抽象方法（如 `EntryNull`）。
+- **範例**：
+  "./DemoModule/Interfaces/IDemo_Driven.cs"
+  ```csharp
+  public interface IDemo_Driven
+  {
+    // Entry Action
+
+    void EntryNull();
+    void EntryIdle();
+    void EntryReady();
+
+    // Exit Action
+
+    void ExitNull();
+    void ExitIdle();
+    void ExitReady();
+
+    // Output Action
+
+    void ActionConnectProcess();
+    void ActionDisconnectProcess();
+  }
+  ```
+- **備註**：`IDemo_Driven` 提供動作的抽象規範，具體實作由 `Demo_Driven` 類別完成。
+
+---
+
+#### 15. 修改 實作狀態類別 `Demo_State_XXX`
+- **原因**：基於 `IDemo_State` 介面，加入`Entry`、`Exit`複寫方法。
+- **步驟**：
+  1. 複寫`Entry`方法，並調用對應的Driven方法。
+  1. 複寫`Exit`方法，並調用對應的Driven方法。
+- **範例**：
+  "./DemoModule/Interfaces/IDemo_State.cs"
+  ```csharp
+    public interface IDemo_State
+    {
+        void HandleEvent(IDemo_Event inputEvent);
+        void Entry();
+        void Exit();
+    }
+
+  public abstract class Base_Demo_State : IDemo_State
+  {
+      protected IDemo_Context Context { get; }
+      public Base_Demo_State(IDemo_Context context) => Context = context;
+      public virtual void HandleEvent(IDemo_Event inputEvent) => throw new NotImplementedException($"HandleEvent was not implemented in '{GetType().Name}'.");
+      public virtual void Entry() => Console.WriteLine($"Entry '{GetType().Name}' State.");
+      public virtual void Exit() => Console.WriteLine($"Exit '{GetType().Name}' State.");
+  }
+
+  public class Demo_State_Null : Base_Demo_State
+  {
+      public Demo_State_Null(IDemo_Context context) : base(context) { }
+      public override void HandleEvent(IDemo_Event inputEvent)
+      {
+          switch (inputEvent)
+          {
+              case Demo_Event_Create _: 
+                Context.SetState(Context.Idle_State); 
+                break;
+              default: throw new NotImplementedException($"Event '{inputEvent}' was not handled in '{GetType().Name}'.");
+          }
+      }
+      public override void Entry() => Context.Driven.EntryNull();
+      public override void Exit() => Context.Driven.ExitNull();
+  }
+
+  public class Demo_State_Idle : Base_Demo_State
+  {
+      public Demo_State_Idle(IDemo_Context context) : base(context) { }
+      public override void HandleEvent(IDemo_Event inputEvent)
+      {
+          switch (inputEvent)
+          {
+              case Demo_Event_Connect _:
+                  Context.Driven.ActionConnectProcess();
+                  Context.SetState(Context.Ready_State);
+                  break;
+
+              case Demo_Event_Destroy _:
+                  Context.SetState(Context.Null_State);
+                  break;
+
+              default: throw new NotImplementedException($"Event '{inputEvent}' was not handled in '{GetType().Name}'.");
+          }
+      }
+
+      public override void Entry() => Context.Driven.EntryIdle();
+      public override void Exit() => Context.Driven.ExitIdle();
+  }
+
+  public class Demo_State_Ready : Base_Demo_State
+  {
+      public Demo_State_Ready(IDemo_Context context) : base(context) { }
+      public override void HandleEvent(IDemo_Event inputEvent)
+      {
+          switch (inputEvent)
+          {
+              case Demo_Event_Disconnect _:
+                  Context.Driven.ActionDisconnectProcess();
+                  Context.SetState(Context.Idle_State);
+                  break;
+
+              default: throw new NotImplementedException($"Event '{inputEvent}' was not handled in '{GetType().Name}'.");
+          }
+      }
+
+      public override void Entry() => Context.Driven.EntryReady();
+      public override void Exit() => Context.Driven.ExitReady();
+  }
+  ```
+以下是可插入至第 15 與第 16 點之間的 Markdown 說明段落，對應你提供的 `Demo_Driven` 實作程式碼：
+
+---
+
+#### 16. 實作 `Demo_Driven` 類別以支援 `Entry` 和 `Exit` 方法
+* **原因**：在狀態機中，`Entry` 和 `Exit` 動作應由外部驅動層（`Driven`）執行，以實現狀態進入與離開的具體行為。透過實作 `IDemo_Driven` 的 `Entry`/`Exit` 方法，可清晰地分離狀態邏輯與執行動作。
+* **步驟**：
+  1. 在 `Demo_Driven` 類別中實作所有定義於 `IDemo_Driven` 的 `EntryXXX`、`ExitXXX` 方法。
+  2. 每個方法皆透過 `Console.WriteLine` 紀錄對應狀態的進入或離開行為。
+* **範例**：
+
+  ```csharp
+  public class Demo_Driven : IDemo_Driven
+  {
+      // Entry Action
+
+      public void EntryNull() => Console.WriteLine("Execute EntryNull Process...");
+      public void EntryIdle() => Console.WriteLine("Execute EntryIdle Process...");
+      public void EntryReady() => Console.WriteLine("Execute EntryReady Process...");
+
+      // Exit Action
+
+      public void ExitNull() => Console.WriteLine("Execute ExitNull Process...");
+      public void ExitIdle() => Console.WriteLine("Execute ExitIdle Process...");
+      public void ExitReady() => Console.WriteLine("Execute ExitReady Process...");
+
+      // Output Action
+
+      public void ActionConnectProcess() => Console.WriteLine("Execute ConnectProcess Process...");
+      public void ActionDisconnectProcess() => Console.WriteLine("Execute DisconnectProcess Process...");
+  }
+  ```
+* **備註**：此實作僅作為示意，實際應用中可在方法內實作資源初始化、硬體控制、UI 更新等具體邏輯。
+
+---
+
+#### 17. 修改 `Demo_Context` 的 `SetState` 方法以支援 `Entry` 和 `Exit`
+- **原因**：狀態切換是狀態機的核心操作，需在切換時正確觸發當前狀態的 `Exit` 和新狀態的 `Entry`，以確保狀態轉換的完整性和副作用的執行。
 - **步驟**：
   1. 修改 `SetState` 方法，在設置新狀態前調用當前狀態的 `Exit` 方法。
-  2. 在設置新狀態後立即調用新狀態的 `Enter` 方法。
+  2. 在設置新狀態後立即調用新狀態的 `Entry` 方法。
   3. 使用可空引用檢查（`?.`）以避免初始狀態為 `null` 時的異常。
 - **範例**：
   "./DemoModule/Demo_Context.cs"
@@ -375,10 +572,10 @@ Execute DisconnectProcess Process...
   public class Demo_Context : IDemo_Context
   {
       public IDemo_State CurrentState { get; private set; }
-      public IDemo_Driven Driven { get; }
       public IDemo_State Null_State { get; }
       public IDemo_State Idle_State { get; }
       public IDemo_State Ready_State { get; }
+      public IDemo_Driven Driven { get; }
 
       public Demo_Context(IDemo_Driven driven)
       {
@@ -386,8 +583,7 @@ Execute DisconnectProcess Process...
           Null_State = new Demo_State_Null(this);
           Idle_State = new Demo_State_Idle(this);
           Ready_State = new Demo_State_Ready(this);
-
-          SetState(Null_State); // 初始狀態設為 Null
+          SetState(Null_State); // The initial state is set to 'Null'
       }
 
       public void SetState(IDemo_State state)
@@ -395,10 +591,10 @@ Execute DisconnectProcess Process...
           if (CurrentState == state) return;
           CurrentState?.Exit();
           CurrentState = state;
-          CurrentState?.Enter();
+          CurrentState?.Entry();
       }
 
-      public void HandleEvent(IDemo_Event stateEvent) => CurrentState.HandleEvent(stateEvent);
+      public void HandleEvent(IDemo_Event inputEvent) => CurrentState.HandleEvent(inputEvent);
   }
   ```
 - **備註**：此修改確保每次狀態切換都會正確執行離開和進入動作，提升狀態機的透明度與可維護性。
@@ -406,7 +602,7 @@ Execute DisconnectProcess Process...
 ---
 
 ### 擴充後的執行流程範例
-以下展示系統在擴充 `Enter` 和 `Exit` 方法後，從初始化到連線再斷線的流程：
+以下展示系統在擴充 `Entry` 和 `Exit` 方法後，從初始化到連線再斷線的流程：
 1. 創建 `Demo_Driven` 實例。
 2. 以 `Demo_Driven` 初始化 `Demo_Context`，預設狀態為 `Null`。
 3. 依序觸發事件：`Create`、`Connect`、`Disconnect`、`Destroy`。
@@ -426,30 +622,30 @@ static void Main(string[] args)
 
 輸出：
 ```
-Enter 'Demo_State_Null' State.
-Exit 'Demo_State_Null' State.
-Enter 'Demo_State_Idle' State.
-Exit 'Demo_State_Idle' State.
-Enter 'Demo_State_Ready' State.
+Execute EntryNull Process...
+Execute ExitNull Process...
+Execute EntryIdle Process...
 Execute ConnectProcess Process...
-Exit 'Demo_State_Ready' State.
-Enter 'Demo_State_Idle' State.
+Execute ExitIdle Process...
+Execute EntryReady Process...
 Execute DisconnectProcess Process...
-Exit 'Demo_State_Idle' State.
-Enter 'Demo_State_Null' State.
+Execute ExitReady Process...
+Execute EntryIdle Process...
+Execute ExitIdle Process...
+Execute EntryNull Process...
 ```
 
 ---
 
 ### 擴充設計總結
-1. **擴充 `IDemo_State`**：新增 `Enter` 和 `Exit` 方法，規範狀態進入與離開行為。
-2. **更新 `Base_Demo_State`**：提供預設的 `Enter` 和 `Exit` 實作，輸出狀態日誌。
-3. **修改 `Demo_Context`**：調整 `SetState` 方法，確保狀態切換時正確觸發 `Exit` 和 `Enter`。
+1. **擴充 `IDemo_State`**：新增 `Entry` 和 `Exit` 方法，規範狀態進入與離開行為。
+2. **更新 `Base_Demo_State`**：提供預設的 `Entry` 和 `Exit` 實作，輸出狀態日誌。
+3. **修改 `Demo_Context`**：調整 `SetState` 方法，確保狀態切換時正確觸發 `Exit` 和 `Entry`。
 
 ---
 
 ### 額外注意事項
-- **日誌用途**：預設的 `Enter` 和 `Exit` 日誌有利於除錯，實際應用中可替換為具體操作（如資源分配或釋放）。
-- **效能考量**：若狀態切換頻繁，應評估 `Enter` 和 `Exit` 的執行成本，避免引入不必要的開銷。
-- **覆寫靈活性**：具體狀態類別（如 `Demo_State_Ready`）可覆寫 `Enter` 或 `Exit`，以實現進階邏輯，如連線初始化或斷線清理。
-- **測試擴充**：新增 `Enter` 和 `Exit` 後，應針對狀態切換行為進行單元測試，驗證每個狀態的進入與離開邏輯是否符合預期。
+- **日誌用途**：預設的 `Entry` 和 `Exit` 日誌有利於除錯，實際應用中可替換為具體操作（如資源分配或釋放）。
+- **效能考量**：若狀態切換頻繁，應評估 `Entry` 和 `Exit` 的執行成本，避免引入不必要的開銷。
+- **覆寫靈活性**：具體狀態類別（如 `Demo_State_Ready`）可覆寫 `Entry` 或 `Exit`，以實現進階邏輯，如連線初始化或斷線清理。
+- **測試擴充**：新增 `Entry` 和 `Exit` 後，應針對狀態切換行為進行單元測試，驗證每個狀態的進入與離開邏輯是否符合預期。
